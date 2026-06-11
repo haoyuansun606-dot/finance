@@ -1,0 +1,9 @@
+在项目根目录下运行（使用当前共享源码）:
+
+  python main.py v4-us-tbond
+
+或在本快照目录内运行（使用固化源码）:
+
+  cd versions/snapshots/v4_equal_low_corr_us_tbond
+  python backtest_diversified_us_tbond.py
+  python backtest_diversified.py
