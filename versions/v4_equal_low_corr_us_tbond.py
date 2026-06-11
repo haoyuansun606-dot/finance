@@ -3,7 +3,7 @@ V4d: Equal-weight + corr filter + US Treasury bond sleeve + MMF cash.
 
 Bond 25%: IEF (7-10Y US Treasury ETF) × USDCNH, CNY total return incl. coupon & duration.
 Cash 25%: Shibor overnight → 511880 splice (2017-09).
-Output: output/v4_equal_low_corr_美债/
+Output: output/v4_low_corr_us_tbond/
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ from src.viz.correlation import plot_corr
 plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei", "Arial Unicode MS", "DejaVu Sans"]
 plt.rcParams["axes.unicode_minus"] = False
 
-VERSION_NAME = "v4_equal_low_corr_美债"
+VERSION_NAME = "v4_low_corr_us_tbond"
 OUTPUT_DIR = resolve_output_dir(VERSION_NAME)
 
 

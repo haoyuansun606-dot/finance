@@ -2,7 +2,7 @@
 V4c: Equal-weight + corr filter + bond splice + split cash sleeve.
 
 Cash 25% = 5% CN demand deposit + 20% Dubai fixed deposit (US2Y×USDCNH proxy).
-Output: output/v4_equal_low_corr_修改货币基金/
+Output: output/v4_low_corr_cash_proxy/
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ from version_bundle import append_readme_note, resolve_output_dir, snapshot_vers
 plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei", "Arial Unicode MS", "DejaVu Sans"]
 plt.rcParams["axes.unicode_minus"] = False
 
-VERSION_NAME = "v4_equal_low_corr_修改货币基金"
+VERSION_NAME = "v4_low_corr_cash_proxy"
 OUTPUT_DIR = resolve_output_dir(VERSION_NAME)
 
 

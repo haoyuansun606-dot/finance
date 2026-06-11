@@ -19,6 +19,28 @@ python main.py v4-us-tbond
 
 结果默认写入 `output/`。行情数据默认缓存在 `data/`，首次运行可能需要联网下载。
 
+## Data And Reproducibility
+
+数据下载不需要 API key，但依赖公开数据源的可用性和返回格式：
+
+- A 股 ETF、Shibor、国债收益率等主要通过 `akshare` 获取。
+- 海外指数和 IEF 等品种主要通过 `yfinance` 获取。
+- 黄金用 XAUUSD 与 USDCNH 组合成人民币计价序列。
+
+`data/` 只作为本地缓存使用，不提交到仓库。复现历史结果时，建议保留当次运行生成的 `data/*.csv` 和 `output/`，因为公开数据源后续可能修订历史数据、调整字段或临时不可用。默认回测区间通常到 `2025-12-31`，实际有效起止日期取决于各资产可获得数据的重叠区间。
+
+## Example Output
+
+以下是一个短区间 smoke test 的输出摘要，用来确认环境和绘图链路正常：
+
+```bash
+python main.py cn --start 2024-01-01 --end 2024-03-31
+```
+
+示例结果：样本区间 `2024-01-02` 至 `2024-03-29`，三种中国四资产策略在该短区间的总收益均为 `4.06%`，最大回撤 `-1.41%`，图表会写入 `output/cn/backtest_chart.png`。完整研究应使用更长样本区间，并结合 `performance_summary.csv`、`yearly_returns.csv` 和图表一起检查。
+
+![中国四资产短区间回测示例](docs/figures/cn_backtest_chart.png)
+
 ## Versions
 
 | Key | Output folder | Description | Script |
@@ -32,8 +54,8 @@ python main.py v4-us-tbond
 | `v4-extended` | `output/v4_extended` | 扩展 10 个国家/地区股票池，比较股票仓配权方案 | `versions/v4_extended.py` |
 | `v4-low-corr` | `output/v4_equal_low_corr` | 等权 + 剔除高相关指数 + GMT+8 延迟调仓 | `versions/v4_equal_low_corr.py` |
 | `v4-low-corr-2014` | `output/v4_equal_low_corr_2014` | 2014 起，债券和现金拼接版本 | `versions/v4_equal_low_corr.py --bond-splice` |
-| `v4-cash-split` | `output/v4_equal_low_corr_修改货币基金` | 现金仓改为 5% 活期 + 20% 迪拜定存 proxy | `versions/v4_equal_low_corr_cash_split.py` |
-| `v4-us-tbond` | `output/v4_equal_low_corr_美债` | 债券仓改为 IEF × USDCNH，美债人民币计价 | `versions/v4_equal_low_corr_us_tbond.py` |
+| `v4-cash-split` | `output/v4_low_corr_cash_proxy` | 现金仓改为 5% 活期 + 20% 迪拜定存 proxy | `versions/v4_equal_low_corr_cash_split.py` |
+| `v4-us-tbond` | `output/v4_low_corr_us_tbond` | 债券仓改为 IEF × USDCNH，美债人民币计价 | `versions/v4_equal_low_corr_us_tbond.py` |
 
 ## Repository Layout
 
@@ -62,6 +84,7 @@ python main.py v4-us-tbond
 
 ## Notes
 
-- `src/` 是当前共享库版本，适合继续开发。
-- `versions/snapshots/` 是按历史产出版本固化的可运行源码，适合复现当时结果。
-- `output/v4_asia` 在原项目 README 中标注为早期废弃试验，因此没有作为主入口；对应替代版本是 `v4-extended`。
+- `src/` 是当前共享库版本，后续 bug 修复和功能改动都应优先放在这里。
+- `versions/snapshots/` 是按历史产出版本固化的源码快照，只用于复现当时结果；默认视为只读，不再随 `src/` 同步维护。
+- V4 变体目前保留为独立入口，差异主要集中在债券和现金 proxy。后续若继续扩展，应优先把这些差异收敛到配置参数，而不是继续复制脚本。
+- 新增输出目录统一使用英文路径，避免跨平台工具链中的编码问题。
