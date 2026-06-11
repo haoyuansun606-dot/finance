@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pandas as pd
 
 from src.data.fetchers import _fetch_etf, _fetch_xau_cny, _fetch_yfinance
@@ -13,6 +15,53 @@ from src.data.presets import (
 )
 
 
+def cache_path_for_asset(meta: dict) -> Path:
+    asset_type = meta.get("type", "etf")
+    if asset_type in {"etf", "xau_usd"}:
+        return DATA_DIR / f"{meta['code']}.csv"
+    code = meta["code"].lstrip("^").replace(".", "_")
+    return DATA_DIR / f"yf_{code}.csv"
+
+
+def fetch_price_frame(meta: dict, start_date: str, end_date: str) -> pd.DataFrame:
+    asset_type = meta.get("type", "etf")
+    try:
+        if asset_type == "etf":
+            return _fetch_etf(meta["code"], start_date, end_date)
+        if asset_type == "xau_usd":
+            return _fetch_xau_cny(start_date, end_date)
+        return _fetch_yfinance(meta["code"], start_date, end_date)
+    except Exception:
+        fallback = meta.get("yf_fallback")
+        if fallback:
+            return _fetch_yfinance(fallback, start_date, end_date)
+        raise
+
+
+def load_price_frame(meta: dict, start_date: str, end_date: str, use_cache: bool = True) -> pd.DataFrame:
+    """Load one asset price frame using cache, primary source, and optional yfinance fallback."""
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    cache = cache_path_for_asset(meta)
+    start_ts, end_ts = pd.Timestamp(start_date), pd.Timestamp(end_date)
+
+    if use_cache and cache.exists():
+        part = pd.read_csv(cache, parse_dates=["date"])
+        needs_refresh = part["date"].min() > start_ts or part["date"].max() < end_ts
+        if needs_refresh:
+            fresh = fetch_price_frame(meta, start_date, end_date)
+            part = (
+                pd.concat([part, fresh], ignore_index=True)
+                .drop_duplicates(subset=["date"], keep="last")
+                .sort_values("date")
+            )
+            part.to_csv(cache, index=False)
+    else:
+        part = fetch_price_frame(meta, start_date, end_date)
+        part.to_csv(cache, index=False)
+
+    return part[(part["date"] >= start_ts) & (part["date"] <= end_ts)]
+
+
 def _load_series(
     key: str,
     meta: dict,
@@ -20,21 +69,7 @@ def _load_series(
     end_date: str,
     use_cache: bool,
 ) -> pd.Series:
-    cache_path = DATA_DIR / f"{meta['code']}.csv"
-    asset_type = meta.get("type", "etf")
-
-    if use_cache and cache_path.exists():
-        part = pd.read_csv(cache_path, parse_dates=["date"])
-    elif asset_type == "etf":
-        part = _fetch_etf(meta["code"], start_date, end_date)
-        part.to_csv(cache_path, index=False)
-    elif asset_type == "xau_usd":
-        part = _fetch_xau_cny(start_date, end_date)
-        part.to_csv(cache_path, index=False)
-    else:
-        raise ValueError(f"Unsupported asset type: {asset_type}")
-
-    part = part[(part["date"] >= pd.Timestamp(start_date)) & (part["date"] <= pd.Timestamp(end_date))]
+    part = load_price_frame(meta, start_date, end_date, use_cache=use_cache)
     return part.set_index("date")["close"].rename(key)
 
 

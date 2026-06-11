@@ -5,15 +5,15 @@ from __future__ import annotations
 from pathlib import Path
 
 DEFAULT_ASSETS = {
-    "stock": {"code": "510300", "name": "沪深300ETF", "type": "etf"},
-    "bond": {"code": "511260", "name": "十年国债ETF", "type": "etf"},
+    "stock": {"code": "510300", "name": "沪深300ETF", "type": "etf", "yf_fallback": "510300.SS"},
+    "bond": {"code": "511260", "name": "十年国债ETF", "type": "etf", "yf_fallback": "511260.SS"},
     "cash": {"code": "511880", "name": "银华日利(货基代理)", "type": "etf"},
     "gold": {"code": "518880", "name": "黄金ETF", "type": "etf"},
 }
 
 GLOBAL_ASSETS = {
-    "stock": {"code": "513100", "name": "纳指100ETF", "type": "etf"},
-    "bond": {"code": "511260", "name": "十年国债ETF", "type": "etf"},
+    "stock": {"code": "513100", "name": "纳指100ETF", "type": "etf", "yf_fallback": "513100.SS"},
+    "bond": {"code": "511260", "name": "十年国债ETF", "type": "etf", "yf_fallback": "511260.SS"},
     "cash": {"code": "511880", "name": "银华日利(货基代理)", "type": "etf"},
     "gold": {"code": "XAUUSD", "name": "XAUUSD(美元金价×USDCNH)", "type": "xau_usd"},
 }
@@ -32,7 +32,7 @@ MULTI_COUNTRY_EQUITIES = {
 }
 
 MULTI_COUNTRY_OTHER = {
-    "bond": {"code": "511260", "name": "十年国债ETF", "type": "etf"},
+    "bond": {"code": "511260", "name": "十年国债ETF", "type": "etf", "yf_fallback": "511260.SS"},
     "cash": {"code": "511880", "name": "银华日利(货基代理)", "type": "etf"},
     "gold": {"code": "XAUUSD", "name": "XAUUSD(美元金价×USDCNH)", "type": "xau_usd"},
 }

@@ -17,7 +17,10 @@ from src.data.loaders import (
     _load_series,
     _load_yfinance_series,
     asset_labels,
+    cache_path_for_asset,
+    fetch_price_frame,
     load_multi_country_prices,
+    load_price_frame,
     load_prices,
 )
 from src.data.presets import (
@@ -60,7 +63,10 @@ __all__ = [
     "_load_yfinance_series",
     "_rate_steps_to_index",
     "asset_labels",
+    "cache_path_for_asset",
+    "fetch_price_frame",
     "load_multi_country_prices",
+    "load_price_frame",
     "load_prices",
     "load_split_cash_series",
     "load_spliced_bond_series",

@@ -8,7 +8,6 @@ Output: output/v4_low_corr_cash_proxy/
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 
 import matplotlib
 matplotlib.use("Agg")
@@ -17,11 +16,19 @@ import pandas as pd
 
 import _bootstrap  # noqa: F401
 from src.correlation_filter import select_stock_universe
-from src.data import BOND_ETF_SPLICE_DATE, DATA_DIR, MULTI_COUNTRY_OTHER, _fetch_xau_cny, load_split_cash_series, load_spliced_bond_series
+from src.data import (
+    BOND_ETF_SPLICE_DATE,
+    DATA_DIR,
+    MULTI_COUNTRY_OTHER,
+    _fetch_xau_cny,
+    load_price_frame,
+    load_split_cash_series,
+    load_spliced_bond_series,
+)
 from src.expanded_study import EXPANDED_STOCKS
-from src.metrics import format_summary_table, format_yearly_table, performance_summary, yearly_returns
-from src.selection.dynamic_equal import _load_price_frame, run_dynamic_equal_low_corr
-from src.strategies.grouped import GroupedBacktestConfig
+from src.metrics import format_yearly_table, yearly_returns
+from src.selection.dynamic_equal import run_dynamic_equal_low_corr
+from src.v4_common import make_v4_config, write_2014_2017_returns, write_v4_outputs
 from src.version_bundle import append_readme_note, resolve_output_dir, snapshot_version
 from src.viz.correlation import plot_corr
 
@@ -37,7 +44,7 @@ def load_prices_split_cash(start: str, end: str) -> tuple[pd.DataFrame, dict[str
     series: dict[str, pd.Series] = {}
     labels: dict[str, str] = {}
     for key, meta in EXPANDED_STOCKS.items():
-        part = _load_price_frame(meta, start, end)
+        part = load_price_frame(meta, start, end)
         series[key] = part.set_index("date")["close"].rename(key)
         labels[key] = f"{meta['name']}({meta['code']})"
 
@@ -91,37 +98,20 @@ def main() -> None:
     ref = select_stock_universe(rets.iloc[-args.lookback :], args.method, args.corr)
     plot_corr(ref["corr"], labels, OUTPUT_DIR / "correlation_matrix.png")
 
-    config = GroupedBacktestConfig(
-        stock_keys=stock_keys,
-        lower_band=args.lower,
-        upper_band=args.upper,
-        initial_capital=args.capital,
-    )
+    config = make_v4_config(args, stock_keys)
 
-    nav, weights, sel_log, band_log = run_dynamic_equal_low_corr(
+    nav, weights, sel_log, band_log, last_sel = run_dynamic_equal_low_corr(
         prices, stock_keys, args.lookback, args.corr, args.method, config, delay_band_to_noon=True
     )
 
-    perf = performance_summary(nav, "活5迪定20_GMT8中午调仓")
-    summary = format_summary_table([perf])
-    summary.to_csv(OUTPUT_DIR / "performance_summary.csv", encoding="utf-8-sig")
-    pd.DataFrame(sel_log).to_csv(OUTPUT_DIR / "selection_log.csv", index=False, encoding="utf-8-sig")
-    pd.DataFrame(band_log).to_csv(OUTPUT_DIR / "band_rebalance_log.csv", index=False, encoding="utf-8-sig")
-    weights.iloc[-1].to_csv(OUTPUT_DIR / "latest_weights.csv", encoding="utf-8-sig")
+    summary, _ = write_v4_outputs(OUTPUT_DIR, nav, weights, sel_log, band_log, "活5迪定20_GMT8中午调仓")
     cash_comp.to_csv(OUTPUT_DIR / "cash_components.csv", encoding="utf-8-sig")
 
-    yearly = yearly_returns(nav).to_frame("GMT8中午调仓")
-    yearly.to_csv(OUTPUT_DIR / "yearly_returns.csv", encoding="utf-8-sig")
-
     seg = nav.loc["2014-01-01":"2017-12-31"]
-    if len(seg) >= 2:
-        yearly_seg = yearly_returns(seg).to_frame("GMT8中午调仓")
-        seg_row = pd.Series({"GMT8中午调仓": performance_summary(seg, "")["cagr"]}, name="2014-2017年化")
-        pd.concat([yearly_seg, seg_row.to_frame().T]).to_csv(
-            OUTPUT_DIR / "yearly_returns_2014_2017.csv", encoding="utf-8-sig"
-        )
+    pseg = write_2014_2017_returns(OUTPUT_DIR, nav)
 
-    last_sel = select_stock_universe(rets.iloc[-args.lookback :], args.method, args.corr)
+    if last_sel is None:
+        last_sel = select_stock_universe(rets.iloc[-args.lookback :], args.method, args.corr)
     with open(OUTPUT_DIR / "README.txt", "w", encoding="utf-8") as f:
         f.write("V4 等权 + 去相关 + 修改现金仓(替代511880货基)\n")
         f.write("全组合 25% 现金 = 5% 活期(央行基准) + 20% 迪拜定存\n")
@@ -137,14 +127,13 @@ def main() -> None:
     print(f"区间: {prices.index.min().date()} ~ {prices.index.max().date()}")
     print("\n绩效:")
     print(summary.to_string())
-    if len(seg) >= 2:
-        pseg = performance_summary(seg, "2014-2017")
+    if pseg is not None:
         print(f"\n2014-2017: 年化 {pseg['cagr']*100:.2f}%  回撤 {pseg['max_drawdown']*100:.2f}%")
         print(format_yearly_table(yearly_returns(seg).to_frame("组合")).to_string())
     print(f"\n目录: {OUTPUT_DIR.resolve()}")
 
-    snapshot_version(OUTPUT_DIR, ["backtest_diversified_cash_split.py", "backtest_diversified.py"])
-    append_readme_note(OUTPUT_DIR, "backtest_diversified_cash_split.py + 依赖模块")
+    snapshot_version(OUTPUT_DIR, ["versions/v4_equal_low_corr_cash_split.py"])
+    append_readme_note(OUTPUT_DIR, "versions/v4_equal_low_corr_cash_split.py + 依赖模块")
     print(f"源码已写入: {(OUTPUT_DIR / 'src').resolve()}")
 
 

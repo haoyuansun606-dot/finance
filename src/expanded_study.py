@@ -28,8 +28,8 @@ OUTPUT_DIR = Path(__file__).resolve().parent.parent / "output" / "v4_extended"
 
 # Previously used + newly added (within 25% stock sleeve)
 EXPANDED_STOCKS = {
-    "cn": {"code": "510300", "name": "沪深300", "type": "etf", "tag": "v1"},
-    "nasdaq": {"code": "513100", "name": "纳指100", "type": "etf", "tag": "v2"},
+    "cn": {"code": "510300", "name": "沪深300", "type": "etf", "tag": "v1", "yf_fallback": "510300.SS"},
+    "nasdaq": {"code": "513100", "name": "纳指100", "type": "etf", "tag": "v2", "yf_fallback": "513100.SS"},
     "us": {"code": "^GSPC", "name": "标普500", "type": "yfinance", "tag": "v3"},
     "jp": {"code": "^N225", "name": "日经225", "type": "yfinance", "tag": "v3"},
     "uk": {"code": "^FTSE", "name": "FTSE100", "type": "yfinance", "tag": "v3"},

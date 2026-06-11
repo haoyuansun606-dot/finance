@@ -17,7 +17,7 @@ from src.correlation_filter import select_stock_universe
 from src.data import BOND_ETF_SPLICE_DATE
 from src.metrics import format_summary_table, format_yearly_table, performance_summary, yearly_returns
 from src.selection.dynamic_equal import load_all_prices, run_dynamic_equal_low_corr
-from src.strategies.grouped import GroupedBacktestConfig
+from src.v4_common import make_v4_config
 from src.version_bundle import append_readme_note, snapshot_version
 from src.viz.correlation import plot_corr
 
@@ -56,17 +56,12 @@ def main() -> None:
     ref = select_stock_universe(rets.iloc[-args.lookback :], args.method, args.corr)
     plot_corr(ref["corr"], labels, out_dir / "correlation_matrix.png")
 
-    config = GroupedBacktestConfig(
-        stock_keys=stock_keys,
-        lower_band=args.lower,
-        upper_band=args.upper,
-        initial_capital=args.capital,
-    )
+    config = make_v4_config(args, stock_keys)
 
-    nav_imm, _, sel_log, _ = run_dynamic_equal_low_corr(
+    nav_imm, _, sel_log, _, _ = run_dynamic_equal_low_corr(
         prices, stock_keys, args.lookback, args.corr, args.method, config, delay_band_to_noon=False
     )
-    nav, weights, _, band_log = run_dynamic_equal_low_corr(
+    nav, weights, _, band_log, last_sel = run_dynamic_equal_low_corr(
         prices, stock_keys, args.lookback, args.corr, args.method, config, delay_band_to_noon=True
     )
 
@@ -93,7 +88,8 @@ def main() -> None:
                 out_dir / "yearly_returns_2014_2017.csv", encoding="utf-8-sig"
             )
 
-    last_sel = select_stock_universe(rets.iloc[-args.lookback :], args.method, args.corr)
+    if last_sel is None:
+        last_sel = select_stock_universe(rets.iloc[-args.lookback :], args.method, args.corr)
 
     with open(out_dir / "README.txt", "w", encoding="utf-8") as f:
         f.write("V4 等权 + 剔除高相关指数 + GMT+8 延迟调仓\n")
@@ -133,8 +129,8 @@ def main() -> None:
             print(format_yearly_table(yearly_returns(seg).to_frame("GMT8中午调仓")).to_string())
     print(f"\n目录: {out_dir.resolve()}")
 
-    snapshot_version(out_dir, ["backtest_diversified.py"])
-    append_readme_note(out_dir, "backtest_diversified.py + 依赖模块")
+    snapshot_version(out_dir, ["versions/v4_equal_low_corr.py"])
+    append_readme_note(out_dir, "versions/v4_equal_low_corr.py + 依赖模块")
     print(f"源码已写入: {(out_dir / 'src').resolve()}")
 
 

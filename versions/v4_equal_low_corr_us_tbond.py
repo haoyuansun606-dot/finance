@@ -9,7 +9,6 @@ Output: output/v4_low_corr_us_tbond/
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 
 import matplotlib
 matplotlib.use("Agg")
@@ -23,13 +22,13 @@ from src.data import (
     DATA_DIR,
     MULTI_COUNTRY_OTHER,
     _fetch_xau_cny,
+    load_price_frame,
     load_spliced_cash_series,
     load_us_treasury_bond_series,
 )
 from src.expanded_study import EXPANDED_STOCKS
-from src.metrics import format_summary_table, format_yearly_table, performance_summary, yearly_returns
-from src.selection.dynamic_equal import _load_price_frame, run_dynamic_equal_low_corr
-from src.strategies.grouped import GroupedBacktestConfig
+from src.selection.dynamic_equal import run_dynamic_equal_low_corr
+from src.v4_common import make_v4_config, write_v4_outputs
 from src.version_bundle import append_readme_note, resolve_output_dir, snapshot_version
 from src.viz.correlation import plot_corr
 
@@ -44,7 +43,7 @@ def load_prices_us_tbond(start: str, end: str) -> tuple[pd.DataFrame, dict[str, 
     series: dict[str, pd.Series] = {}
     labels: dict[str, str] = {}
     for key, meta in EXPANDED_STOCKS.items():
-        part = _load_price_frame(meta, start, end)
+        part = load_price_frame(meta, start, end)
         series[key] = part.set_index("date")["close"].rename(key)
         labels[key] = f"{meta['name']}({meta['code']})"
 
@@ -93,8 +92,8 @@ def main() -> None:
     ref = select_stock_universe(rets.iloc[-args.lookback :], args.method, args.corr)
     plot_corr(ref["corr"], labels, OUTPUT_DIR / "correlation_matrix.png")
 
-    config = GroupedBacktestConfig(stock_keys=stock_keys)
-    nav, weights, sel_log, band_log = run_dynamic_equal_low_corr(
+    config = make_v4_config(args, stock_keys)
+    nav, weights, sel_log, band_log, _ = run_dynamic_equal_low_corr(
         prices,
         stock_keys,
         args.lookback,
@@ -104,15 +103,7 @@ def main() -> None:
         delay_band_to_noon=True,
     )
 
-    perf = performance_summary(nav, "美债+货基_GMT8中午调仓")
-    summary = format_summary_table([perf])
-    summary.to_csv(OUTPUT_DIR / "performance_summary.csv", encoding="utf-8-sig")
-    pd.DataFrame(sel_log).to_csv(OUTPUT_DIR / "selection_log.csv", index=False, encoding="utf-8-sig")
-    pd.DataFrame(band_log).to_csv(OUTPUT_DIR / "band_rebalance_log.csv", index=False, encoding="utf-8-sig")
-    weights.iloc[-1].to_csv(OUTPUT_DIR / "latest_weights.csv", encoding="utf-8-sig")
-    yearly_returns(nav).to_frame("GMT8中午调仓").to_csv(
-        OUTPUT_DIR / "yearly_returns.csv", encoding="utf-8-sig"
-    )
+    summary, _ = write_v4_outputs(OUTPUT_DIR, nav, weights, sel_log, band_log, "美债+货基_GMT8中午调仓")
 
     with open(OUTPUT_DIR / "README.txt", "w", encoding="utf-8") as f:
         f.write("V4 等权 + 去相关 + 债券换美债 + 货基现金\n")
@@ -131,8 +122,8 @@ def main() -> None:
     print(summary.to_string())
     print(f"\n目录: {OUTPUT_DIR.resolve()}")
 
-    snapshot_version(OUTPUT_DIR, ["backtest_diversified_us_tbond.py", "backtest_diversified.py"])
-    append_readme_note(OUTPUT_DIR, "backtest_diversified_us_tbond.py + 依赖模块")
+    snapshot_version(OUTPUT_DIR, ["versions/v4_equal_low_corr_us_tbond.py"])
+    append_readme_note(OUTPUT_DIR, "versions/v4_equal_low_corr_us_tbond.py + 依赖模块")
     print(f"源码已写入: {(OUTPUT_DIR / 'src').resolve()}")
 
 

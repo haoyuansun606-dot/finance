@@ -8,12 +8,6 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SRC_ROOT = Path(__file__).resolve().parent
 
-NOTEBOOK_ENTRIES = {
-    "backtest_diversified.py": "run_diversified_v4.py",
-    "backtest_diversified_cash_split.py": "backtest_diversified_cash_split.py",
-    "backtest_diversified_us_tbond.py": "backtest_diversified_us_tbond.py",
-}
-
 
 def resolve_output_dir(version_name: str) -> Path:
     """If script lives in output/<version>/src/, write results to version root."""
@@ -40,9 +34,9 @@ def _copy_src_tree(dest: Path) -> list[str]:
     return copied
 
 
-def snapshot_version(out_dir: Path, entry_scripts: list[str]) -> Path:
+def snapshot_version(out_dir: Path, entry_scripts: list[str | Path]) -> Path:
     """
-    Copy src package + notebook entry scripts to out_dir/src/.
+    Copy src package + current repository entry scripts to out_dir/src/.
     Returns src_dir path.
     """
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -52,30 +46,37 @@ def snapshot_version(out_dir: Path, entry_scripts: list[str]) -> Path:
     src_dir.mkdir(parents=True, exist_ok=True)
 
     copied = _copy_src_tree(src_dir)
-    notebooks_dir = PROJECT_ROOT / "notebooks"
-    for name in entry_scripts:
-        nb_name = NOTEBOOK_ENTRIES.get(name, name)
-        src = notebooks_dir / nb_name
+    copied_entries: list[tuple[Path, Path]] = []
+    bootstrap = PROJECT_ROOT / "versions" / "_bootstrap.py"
+    if bootstrap.exists():
+        target = src_dir / "versions" / "_bootstrap.py"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(bootstrap, target)
+        copied.append("versions/_bootstrap.py")
+
+    for entry in entry_scripts:
+        rel_entry = Path(entry)
+        src = PROJECT_ROOT / rel_entry
         if not src.exists():
-            src = PROJECT_ROOT / name
-        if src.exists():
-            shutil.copy2(src, src_dir / name)
-            copied.append(name)
+            continue
+        target = src_dir / rel_entry
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, target)
+        rel_text = rel_entry.as_posix()
+        copied.append(rel_text)
+        copied_entries.append((rel_entry, target))
 
     run_txt = src_dir / "RUN.txt"
+    root_commands = "\n".join(f"  python {rel.as_posix()}" for rel, _ in copied_entries)
+    snapshot_commands = "\n".join(f"  python {target.relative_to(src_dir).as_posix()}" for _, target in copied_entries)
     run_txt.write_text(
-        "在 permanent_portfolio 目录下运行（需联网拉数据时）:\n\n"
+        "在项目根目录下运行（需联网拉数据时）:\n\n"
         f"  cd \"{PROJECT_ROOT}\"\n"
-        + "\n".join(
-            f"  python notebooks/{NOTEBOOK_ENTRIES.get(name, name)}"
-            for name in entry_scripts
-            if (notebooks_dir / NOTEBOOK_ENTRIES.get(name, name)).exists()
-            or (PROJECT_ROOT / name).exists()
-        )
+        + root_commands
         + "\n\n"
         "或在版本文件夹内（使用快照源码）:\n\n"
         f"  cd \"{src_dir}\"\n"
-        + "\n".join(f"  python {name}" for name in entry_scripts if (src_dir / name).exists())
+        + snapshot_commands
         + "\n",
         encoding="utf-8",
     )
